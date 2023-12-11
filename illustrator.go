@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"io"
-
-	"github.com/fpagyu/illustrator/ps"
 )
 
 type AIReader struct {
@@ -73,8 +71,8 @@ func (r *AIReader) Draw(drawer Drawer) error {
 	return nil
 }
 
-func (r *AIReader) readHeader() *ps.AIHeader {
-	var header ps.AIHeader
+func (r *AIReader) readHeader() *AIHeader {
+	var header AIHeader
 	Title := []byte("%%Title:")
 	EndComment := []byte("%%EndComments")
 	BoundingBox := []byte("%%BoundingBox:")
@@ -104,10 +102,10 @@ func (r *AIReader) readHeader() *ps.AIHeader {
 	return &header
 }
 
-func (r *AIReader) readProlog() *ps.AIProlog {
+func (r *AIReader) readProlog() *AIProlog {
 	// %%BeginProlog
 	// %%EndProlog
-	var prolog ps.AIProlog
+	var prolog AIProlog
 	EndProlog := []byte("%%EndProlog")
 	for r.readLine() {
 		line := r.Bytes()
@@ -166,7 +164,7 @@ func (r *AIReader) drawLayer(d Drawer) {
 }
 
 func (r *AIReader) beginLayer(d Drawer, args []string) {
-	layer := ps.AILayer{
+	layer := AILayer{
 		Visible:           args[0] == "1",
 		Preview:           args[1] == "1",
 		Enabled:           args[2] == "1",

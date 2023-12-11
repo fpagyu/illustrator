@@ -1,12 +1,10 @@
 package illustrator
 
-import "github.com/fpagyu/illustrator/ps"
-
 type Drawer interface {
-	SetHeader(*ps.AIHeader)
+	SetHeader(*AIHeader)
 
 	// Layer
-	BeginLayer(*ps.AILayer)
+	BeginLayer(*AILayer)
 	SetLayerName(name string)
 	EndLayer()
 }

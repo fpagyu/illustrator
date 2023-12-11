@@ -1,7 +1,7 @@
 package svg
 
 import (
-	"github.com/fpagyu/illustrator/ps"
+	"github.com/fpagyu/illustrator"
 )
 
 type SVG struct {
@@ -11,11 +11,11 @@ type SVG struct {
 	group *SvgGroup // 当前所在的group
 }
 
-func (svg *SVG) SetHeader(header *ps.AIHeader) {
+func (svg *SVG) SetHeader(header *illustrator.AIHeader) {
 	svg.viewBox = header.BoundingBox
 }
 
-func (svg *SVG) BeginLayer(layer *ps.AILayer) {
+func (svg *SVG) BeginLayer(layer *illustrator.AILayer) {
 	svg.group = &SvgGroup{
 		id: layer.Name,
 	}

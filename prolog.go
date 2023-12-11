@@ -1,3 +1,3 @@
-package ps
+package illustrator
 
 type AIProlog struct{}

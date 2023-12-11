@@ -1,4 +1,4 @@
-package ps
+package illustrator
 
 type AILayer struct {
 	Name       string
