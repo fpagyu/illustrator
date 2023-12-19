@@ -11,6 +11,8 @@ type AIHeader struct {
 	HiResBoundingBox [4]float64
 }
 
+type AIProlog struct{}
+
 func (h *AIHeader) SetHeader(title []byte) {
 	var start, end int
 	for i := range title {
@@ -36,6 +38,7 @@ func (h *AIHeader) SetBoundingBox(line []byte) {
 		}
 
 		h.BoundingBox[i], _ = strconv.Atoi(string(v))
+		i++
 	}
 }
 
@@ -49,5 +52,20 @@ func (h *AIHeader) SetHiResBoundingBox(line []byte) {
 		}
 
 		h.HiResBoundingBox[i], _ = strconv.ParseFloat(string(v), 0)
+		i++
 	}
+}
+
+type AILayer struct {
+	Name       string
+	LayerIndex int // layer index
+
+	Visible           bool
+	Preview           bool
+	Enabled           bool
+	Printing          bool
+	Dimmed            bool
+	HasMultiLayerMask bool
+	ColorIndex        int8 // between -1 and 26
+	RGB               [3]uint8
 }

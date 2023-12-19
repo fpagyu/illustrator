@@ -4,6 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"io"
+	"log"
+)
+
+var (
+	AI5_EndRaster   = []byte("%AI5_EndRaster")
+	AI5_BeginRaster = []byte("%AI5_BeginRaster")
 )
 
 type AIReader struct {
@@ -60,7 +66,7 @@ func (r *AIReader) Draw(drawer Drawer) error {
 	for r.readLine() {
 		line := r.Bytes()
 		if bytes.HasPrefix(line, BeginSetup) {
-			r.readSetup()
+			r.readSetup(drawer)
 		} else if bytes.HasPrefix(line, BeginProlog) {
 			r.readProlog()
 		} else if bytes.HasPrefix(line, BeginLayer) {
@@ -119,9 +125,11 @@ func (r *AIReader) readProlog() *AIProlog {
 	return &prolog
 }
 
-func (r *AIReader) readSetup() {
+func (r *AIReader) readSetup(drawer Drawer) {
 	// %%BeginSetup
 	// %%EndSetup
+	XI := []byte("XI")
+	Bd := []byte(" Bd")
 	EndSetup := []byte("%%EndSetup")
 	for r.readLine() {
 		line := r.Bytes()
@@ -129,7 +137,15 @@ func (r *AIReader) readSetup() {
 		if bytes.HasPrefix(line, EndSetup) {
 			break
 		}
+
 		// todo
+		if bytes.HasSuffix(line, XI) {
+			r.readRasterData()
+		}
+
+		if bytes.HasSuffix(line, Bd) {
+			r.defGradient(drawer)
+		}
 	}
 }
 
@@ -137,7 +153,11 @@ func (r *AIReader) drawLayer(d Drawer) {
 	var token lineToken
 	for r.readLine() {
 		line := r.Bytes()
+
 		if line[0] == '%' {
+			if bytes.Equal(AI5_BeginRaster, line) {
+				r.beginRaster(d)
+			}
 			// skip comments
 			continue
 		}
@@ -158,6 +178,149 @@ func (r *AIReader) drawLayer(d Drawer) {
 				d.SetLayerName(token.Pop())
 			case "O", "R": // fill/stroke overprint
 				token.Pop()
+			case "d": // setdash
+				token.Pop()
+			case "D": //
+			case "i": // setflat
+				token.Pop()
+			case "j": // linejoin
+				d.SetLineJoin(token.Pop())
+			case "J": // linecap
+				d.SetLineCap(token.Pop())
+			case "w": // linewidth
+				d.SetLineWidth(token.Pop())
+			case "M": // setmiterlimit
+				d.SetMiterLimit(token.Pop())
+			case "f": // fill
+				d.ClosePath()
+				d.PathRender(AI_Fill)
+			case "F":
+				d.PathRender(AI_Fill)
+			case "s": // stroke
+				d.ClosePath()
+				d.PathRender(AI_Stroke)
+			case "S":
+				d.PathRender(AI_Stroke)
+			case "b": // fill and stroke
+				d.ClosePath()
+				d.PathRender(AI_Fill | AI_Stroke)
+			case "B":
+				d.PathRender(AI_Fill | AI_Stroke)
+			case "h": // close path
+				d.ClosePath()
+				d.ClipPath()
+			case "H": // close path
+				d.ClipPath()
+			case "W": // clip
+				d.ApplyClip()
+			case "n": // no fill no stroke
+				d.PathRender(0)
+			case "N":
+				d.ClosePath()
+				d.PathRender(0)
+			case "u": // begin group
+				d.Group()
+			case "U": // end group
+				d.EndGroup()
+			case "q": // begin clip group
+				d.Group()
+			case "Q": // end  group
+				d.EndGroup()
+			case "*u": // begin compound path
+				d.CompoundPath()
+			case "*U": // end compound path
+				d.EndCompoundPath()
+			case "m":
+				args := token.PopN(2)
+				x := toFloat(args[0])
+				y := toFloat(args[1])
+				d.Moveto(x, y)
+			case "l", "L":
+				args := token.PopN(2)
+				x := toFloat(args[0])
+				y := toFloat(args[1])
+				d.Lineto(x, y)
+			case "y", "Y":
+				args := toFloatSlice(token.PopN(4))
+				d.Curveto1(args[0], args[1], args[2], args[3])
+			case "v", "V":
+				args := toFloatSlice(token.PopN(4))
+				d.Curveto2(args[0], args[1], args[2], args[3])
+			case "c", "C":
+				args := toFloatSlice(token.PopN(6))
+				d.Curveto(args[0], args[1], args[2], args[3], args[4], args[5])
+			case "g": // set fill tint
+				if tint := token.Pop(); tint != "0" {
+					log.Println("todo: NotImplement: g")
+				}
+			case "G": // set stroke tint
+				if tint := token.Pop(); tint != "0" {
+					log.Println("todo: NotImplement: g")
+				}
+			case "k": // fill setcmykcolor
+				args := KArgs(token.PopAll())
+				d.SetCMYK(AI_Fill, args.CMYK())
+			case "K": // stroke setcmykcolor
+				args := KArgs(token.PopAll())
+				d.SetCMYK(AI_Stroke, args.CMYK())
+			case "x": // custom fill
+				args := XArgs(token.PopAll())
+				d.SetCMYK(AI_Fill, args.CMYK())
+			case "X":
+				args := XArgs(token.PopAll())
+				d.SetCMYK(AI_Stroke, args.CMYK())
+			case "Xy": // set opacity
+				args := XYArgs(token.PopN(5))
+				d.SetOpacity(args)
+			case "Xa":
+				args := XAArgs(token.PopAll())
+				d.SetRGB(AI_Fill, args.RGB())
+			case "XA":
+				args := XAArgs(token.PopAll())
+				d.SetRGB(AI_Stroke, args.RGB())
+			case "Xk":
+				args := XKArgs(token.PopAll())
+				if args.colorSpace == 1 {
+					d.SetRGB(AI_Fill, args.RGB())
+				} else {
+					d.SetCMYK(AI_Fill, args.CMYK())
+				}
+			case "XK":
+				args := XKArgs(token.PopAll())
+				if args.colorSpace == 1 {
+					d.SetRGB(AI_Stroke, args.RGB())
+				} else {
+					d.SetCMYK(AI_Stroke, args.CMYK())
+				}
+			case "Xx": // custom fill color
+				args := XXArgs(token.PopAll())
+				if args.colorSpace == 1 {
+					d.SetRGB(AI_Fill, args.RGB())
+				} else {
+					d.SetCMYK(AI_Fill, args.CMYK())
+				}
+			case "XX": // custom stroke color
+				args := XXArgs(token.PopAll())
+				if args.colorSpace == 1 {
+					d.SetRGB(AI_Stroke, args.RGB())
+				} else {
+					d.SetCMYK(AI_Stroke, args.CMYK())
+				}
+			case "XR": // fill rule
+			case "Xw": // 0--visible; 1--invisible
+				// args := token.Pop()
+			case "XW": // 6 () XW; 9 () XW;
+				args := token.PopN(2)
+				if args[0] == "6" {
+					d.SetGroupAttr()
+				}
+			case "XG":
+				args := token.PopN(2)
+				if args[0] != "()" {
+					log.Println("XG NotImplement:", args)
+				}
+			case "Bb": // begin gradient instance
+				r.beginGradient(d)
 			}
 		}
 	}
@@ -185,4 +348,156 @@ func (r *AIReader) beginLayer(d Drawer, args []string) {
 	}
 
 	d.BeginLayer(&layer)
+}
+
+func (r *AIReader) readRasterData() []byte {
+	buf := bytes.NewBuffer(nil)
+
+	var enddata1 = []byte("%%EndData")
+	var enddata2 = []byte("%_%%EndData")
+	for {
+		ch, err := r.ReadByte()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			panic(err)
+		}
+
+		buf.WriteByte(ch)
+
+		if b := buf.Bytes(); bytes.HasSuffix(b, enddata1) {
+			if bytes.HasSuffix(b, enddata2) {
+				return b[:len(b)-len(enddata2)]
+			} else {
+				return b[:len(b)-len(enddata1)]
+			}
+		}
+	}
+
+	return nil
+}
+
+func (r *AIReader) defGradient(d Drawer) {
+	var token lineToken
+	token.parse(r.Bytes())
+	args := token.PopAll()
+	if !(len(args) == 4 && args[3] == "Bd") {
+		log.Println("invalid Bd arguments:", args)
+		return
+	}
+	gradient := &Gradient{
+		Name:         args[0],
+		GradientType: toInt8(args[1]),
+		nColors:      toInt(args[2]),
+	}
+
+	for r.readLine() {
+		line := r.Bytes()
+
+		if line[0] == '%' {
+			// skip comment
+			continue
+		}
+
+		token.parse(line)
+		for token.len > 0 {
+			op := token.Pop()
+			switch op {
+			case "BD":
+				d.DefGradient(gradient)
+				return
+			case "%_Bs", "%_BS":
+				if args := BSArgs(token.PopAll()); args != nil {
+					gradient.AddColor(args)
+				}
+			}
+		}
+	}
+}
+
+func (r *AIReader) beginGradient(d Drawer) {
+	var gradient Gradient
+
+	var token lineToken
+	for r.readLine() {
+		line := r.Bytes()
+
+		if line[0] == '%' {
+			// skip comment
+			continue
+		}
+
+		token.parse(line)
+		for token.len > 0 {
+			op := token.Pop()
+			switch op {
+			case "f":
+				// fill path
+				d.ClosePath()
+				d.PathRender(AI_Fill)
+			case "Bc": // define gradient instance cap
+			case "Bg":
+				args := token.PopAll()
+				gradient.Flag = toInt8(args[0])
+			case "Bh": // xHilight yHilight angle length Bh
+			case "Bm": // set gradient matrix
+			case "Xm": // set linear gradient matrix
+			case "BB":
+				d.SetGradient(&gradient)
+				args := token.Pop()
+				if args == "0" {
+					// no action
+				} else if args == "1" {
+					// stroke path
+					d.PathRender(AI_Stroke)
+				} else {
+					// close and stroke path
+					d.ClosePath()
+					d.PathRender(AI_Stroke)
+				}
+				return
+			}
+		}
+	}
+}
+
+func (r *AIReader) beginRaster(d Drawer) {
+	var token lineToken
+
+	XI := []byte("XI")
+	var xiargs []byte
+	for r.readLine() {
+		line := r.Bytes()
+
+		if bytes.Equal(AI5_EndRaster, line) {
+			break
+		}
+
+		if line[0] == '[' && line[len(line)-1] != 'h' {
+			xiargs = make([]byte, len(line))
+			copy(xiargs, line)
+		}
+
+		if bytes.Equal(line, XI) && len(xiargs) > 0 {
+			line = append(xiargs, ' ', 'X', 'I')
+		}
+
+		token.parse(line)
+		for token.len > 0 {
+			op := token.Pop()
+			switch op {
+			case "Xh":
+			case "XF":
+			case "XG":
+			case "XI":
+				data := r.readRasterData()
+				if obj := XIArgs(token.PopAll()); obj != nil {
+					obj.RawData = data
+					d.SetRaster(obj)
+				}
+			}
+		}
+	}
 }

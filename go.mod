@@ -3,6 +3,7 @@ module github.com/fpagyu/illustrator
 go 1.20
 
 require (
+	github.com/ajstarks/svgo v0.0.0-20211024235047-1546f124cd8b
 	github.com/klauspost/compress v1.17.4
 	github.com/unidoc/unipdf/v3 v3.52.0
 )
