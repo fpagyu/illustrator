@@ -321,6 +321,8 @@ func (r *AIReader) drawLayer(d Drawer) {
 				}
 			case "Bb": // begin gradient instance
 				r.beginGradient(d)
+			case "XI":
+				r.readRasterData()
 			}
 		}
 	}
