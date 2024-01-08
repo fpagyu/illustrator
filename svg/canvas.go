@@ -363,6 +363,9 @@ func (_svg *SVG) writeNodes(canvas *Canvas, nodes []SvgNode) {
 		case *SvgPath:
 			node.id = canvas.nextPathId()
 			canvas.Path(node.d, node.Attrs()...)
+		case *SvgCompoundPath:
+			node.id = canvas.nextPathId()
+			canvas.Path(node.d, node.Attrs()...)
 		case *SvgGroup:
 			node.id = canvas.nextGroupId()
 			canvas.Group(node.Attrs()...)
