@@ -16,6 +16,10 @@ type SvgPath struct {
 	attrs map[string]string
 }
 
+type SvgCompoundPath struct {
+	*SvgPath
+}
+
 func (sp *SvgPath) Id() string {
 	return sp.id
 }

@@ -119,7 +119,10 @@ func (svg *SVG) EndCompoundPath() {
 	if svg.path.IsClip() {
 		svg.group.clips = append(svg.group.clips, *svg.path.compoundPath)
 	} else {
-		svg.group.childs = append(svg.group.childs, svg.path.compoundPath)
+		// svg.group.childs = append(svg.group.childs, svg.path.compoundPath)
+		svg.group.childs = append(svg.group.childs, &SvgCompoundPath{
+			SvgPath: svg.path.compoundPath,
+		})
 	}
 	svg.path.UnsetCompound()
 }
