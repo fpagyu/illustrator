@@ -558,7 +558,3 @@ func (c *Canvas) writeImage(img *SvgImage) {
 	)
 	fmt.Fprintln(c.Writer)
 }
-
-type SvgWriteOption struct {
-	IgnoreImage bool // 忽略位图数据, 保存为svg的时候, image数据不会写入
-}
