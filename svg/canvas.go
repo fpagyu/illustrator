@@ -428,9 +428,10 @@ func (_svg *SVG) writeDefs(canvas *Canvas) {
 	canvas.DefEnd()
 }
 
-func (_svg *SVG) writeTo(w io.Writer) error {
+func (_svg *SVG) writeTo(w io.Writer, writeOption *SvgWriteOption) error {
 	canvas := &Canvas{
-		SVG: svg.New(w),
+		SVG:         svg.New(w),
+		writeOption: writeOption,
 	}
 
 	ux := _svg.viewBox[2] - _svg.viewBox[0]
@@ -443,14 +444,19 @@ func (_svg *SVG) writeTo(w io.Writer) error {
 	return nil
 }
 
-func (svg *SVG) Save(path string) error {
+func (svg *SVG) Save(path string, options ...func(*SvgWriteOption)) error {
 	file, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	return svg.writeTo(file)
+	var writeOption SvgWriteOption
+	for _, opt := range options {
+		opt(&writeOption)
+	}
+
+	return svg.writeTo(file, &writeOption)
 }
 
 func (svg *SVG) Nodes(depth int) []SvgNode {
@@ -492,6 +498,8 @@ type Canvas struct {
 	pathid  int
 	groupid int
 	imageid int
+
+	writeOption *SvgWriteOption
 }
 
 func (c *Canvas) nextClipId() string {
@@ -537,6 +545,9 @@ func (c *Canvas) wirteGradient(g *illustrator.Gradient) {
 }
 
 func (c *Canvas) writeImage(img *SvgImage) {
+	if c.writeOption.IgnoreImage {
+		return // skip to write image node
+	}
 	styles := "overflow:visible;" + img.styles
 	transform := fmt.Sprintf("matrix(%s,%s,%s,%s,%s,%s)",
 		Float(img.matrix[0]), Float(img.matrix[1]), Float(img.matrix[2]),
@@ -546,4 +557,8 @@ func (c *Canvas) writeImage(img *SvgImage) {
 		img.id, img.width, img.height, transform, styles, img.b64Img,
 	)
 	fmt.Fprintln(c.Writer)
+}
+
+type SvgWriteOption struct {
+	IgnoreImage bool // 忽略位图数据, 保存为svg的时候, image数据不会写入
 }
