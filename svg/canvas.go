@@ -424,7 +424,7 @@ func (_svg *SVG) writeGradients(canvas *Canvas) {
 
 func (_svg *SVG) writeDefs(canvas *Canvas) {
 	canvas.Def()
-	_svg.writeGradients(canvas)
+	// _svg.writeGradients(canvas)
 	canvas.DefEnd()
 }
 
