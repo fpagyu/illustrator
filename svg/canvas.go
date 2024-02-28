@@ -84,6 +84,13 @@ func (svg *SVG) SetLayerName(name string) {
 }
 
 func (svg *SVG) Group() {
+	if svg.group == nil {
+		svg.group = &SvgGroup{
+			id: "group",
+		}
+		svg.layers = append(svg.layers, svg.group)
+	}
+
 	svg.group = &SvgGroup{
 		id:     "group",
 		parent: svg.group,
